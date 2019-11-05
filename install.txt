@@ -1,0 +1,3 @@
+pip install -r requirements.txt
+
+Copiar cv2.pyd para C:/Python27/lib/site-packeges/

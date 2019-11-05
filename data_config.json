@@ -1,0 +1,8 @@
+{
+"class":{"1":"person", "2":"bola"},
+"dataset":{
+	"url": "data",
+	"inputs": "/Input/", 
+	"imagens": "/JPEGImages/", 
+	"anotations": "/Annotations/"}
+}
