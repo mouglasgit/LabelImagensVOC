@@ -24,6 +24,11 @@ import json
 class TKMarkCoorAnnotation(Frame):
     def __init__(self):
         
+        
+        self.dist1 = np.Inf
+        self.dist2 = np.Inf
+        self.TDIST = 4
+        
         #inputs-------------------        
         input_data = self.load_config()
 
@@ -204,7 +209,9 @@ class TKMarkCoorAnnotation(Frame):
         # reload line
         self.create_line_curso()
         
-    
+        #--------------
+        
+        
     def load_config(self):
         data = None
         try:
@@ -385,9 +392,14 @@ class TKMarkCoorAnnotation(Frame):
         
         self.canvas.create_rectangle(self.x1 - 5, self.y1 - 15, self.x1 + 60, self.y1, fill="yellow", outline='yellow', width=2)
         self.text_class = self.canvas.create_text(self.x1 + 25, self.y1 - 10, font="Arial 10", text=("{} {}").format(self.classe, self.name_i))
-        self.rect = self.canvas.create_rectangle(self.x1, self.y1, self.x2, self.y2, fill="", outline='yellow', width=2, dash=(8, 6))
+        
+        
+        self.canvas.create_rectangle(self.x1, self.y1, self.x2, self.y2, fill="", outline='yellow', width=2, dash=(8, 6))
+        
+        b = 8    
+        self.canvas.create_oval(self.x1 - b // 2, self.y1 - b // 2, self.x1 + b // 2, self.y1 + b // 2, fill="green", outline='green', width=2)
+        self.rect = self.canvas.create_oval(self.x2 - b // 2, self.y2 - b // 2, self.x2 + b // 2, self.y2 + b // 2, fill="green", outline='green', width=2)
   
-    
     def list_objs_event(self, event):
         self.redraw_img()
         idx = self.list_objs.curselection()[0]
@@ -616,6 +628,9 @@ class TKMarkCoorAnnotation(Frame):
                     
         # del 127
         if k == str('c'):
+            print "Itens:", len(self.canvas.find_all())
+            self.canvas.delete("all")
+            
             if len(self.objetos_coo) > 0:
                 idx = self.list_objs.curselection()[0]
                 
@@ -650,6 +665,9 @@ class TKMarkCoorAnnotation(Frame):
         
         # grava o objeto
         if k == str('w'):
+            print "Itens:", len(self.canvas.find_all())
+            self.canvas.delete("all")
+            
             h, w, _ = self.frame.shape
             
             print 'Anotação gerada!'
@@ -702,7 +720,9 @@ class TKMarkCoorAnnotation(Frame):
         
         # avanca image
         if k == str('d'):  
-            
+            print "Itens:", len(self.canvas.find_all())
+            self.canvas.delete("all")
+        
             if self.id < len(self.imgs) - 1:
                 
                 self.objetos_coo = []
@@ -742,7 +762,9 @@ class TKMarkCoorAnnotation(Frame):
         
         # volta image
         if k == str('a'):
-        
+            print "Itens:", len(self.canvas.find_all())
+            self.canvas.delete("all")
+            
             if self.id > 0:
               
             
@@ -805,94 +827,162 @@ class TKMarkCoorAnnotation(Frame):
         
     
     def on_button_press(self, event):
+        self.redraw_img()
+        
         # save mouse drag start position
         self.start_x, self.start_y = (event.x, event.y)
         self.x1, self.y1 = (event.x, event.y)
-         
-        self.canvas.create_rectangle(self.x1 - 5, self.y1 - 15, self.x1 + 60, self.y1, fill="green", outline='green', width=2)
-        self.text_class = self.canvas.create_text(self.x1 + 25, self.y1 - 10, font="Arial 10", text=("{} {}").format(self.classe, self.name_i))
-        self.rect = self.canvas.create_rectangle(self.x1, self.y1, 1, 1, fill="", outline='green', width=2, dash=(8, 6))
         
+        if self.dist1 < self.TDIST or self.dist2 < self.TDIST:
+            
+            pass
+            
+        else:    
+            self.canvas.create_rectangle(self.x1 - 5, self.y1 - 15, self.x1 + 60, self.y1, fill="green", outline='green', width=2)
+            self.text_class = self.canvas.create_text(self.x1 + 25, self.y1 - 10, font="Arial 10", text=("{} {}").format(self.classe, self.name_i))
+            self.rect = self.canvas.create_rectangle(self.x1, self.y1, 1, 1, fill="", outline='green', width=2, dash=(8, 6))
+            
         self.status.config(text="Status: {}".format('Não Salvo'))
 
     def on_move_press(self, event):
         curX, curY = (event.x, event.y)
-        self.x2, self.y2 = curX, curY
+              
+        if self.dist1 < self.TDIST:
+            self.x1, self.y1 = curX, curY
+        else:
+            self.x2, self.y2 = curX, curY
 
         # expand rectangle as you drag the mouse
+        # --
         try:
             self.canvas.coords(self.rect, self.x1, self.y1, self.x2, self.y2)
         except Exception, e:
             print e    
-    
-    def on_move(self, event):
+        # --
         
+        
+        if self.dist1 < self.TDIST:
+             
+            list_select = self.list_objs.curselection()[0]
+             
+            self.objetos_re_draw[list_select][2] = self.x1
+            self.objetos_re_draw[list_select][3] = self.y1
+             
+            self.objetos_coo[list_select][2] = self.x1
+            self.objetos_coo[list_select][3] = self.y1
+             
+            self.canvas.coords(self.rect, self.x1, self.y1, self.objetos_re_draw[list_select][2] + self.objetos_re_draw[list_select][4], \
+                               self.objetos_re_draw[list_select][3] + self.objetos_re_draw[list_select][5])
+            
+        elif self.dist2 < self.TDIST:
+             
+            list_select = self.list_objs.curselection()[0]
+             
+            self.objetos_re_draw[list_select][4] = self.x2 - self.objetos_re_draw[list_select][2]
+            self.objetos_re_draw[list_select][5] = self.y2 - self.objetos_re_draw[list_select][3]
+             
+            self.objetos_coo[list_select][4] = self.x2 - self.objetos_coo[list_select][2]
+            self.objetos_coo[list_select][5] = self.y2 - self.objetos_coo[list_select][3]
+             
+            self.canvas.coords(self.rect, self.objetos_re_draw[list_select][2], self.objetos_re_draw[list_select][3], self.x2, self.y2)
+        
+    def on_move(self, event):
         
         curX, curY = (event.x, event.y)
               
         self.canvas.coords(self.vertical_line, curX, 0, curX, self.size_h)
         self.canvas.coords(self.horizontal_line, 0, curY, self.size_w, curY)
-  
+        
+        
+        list_select = self.list_objs.curselection()[0]
+        
+        self.dist1 = np.linalg.norm(np.array([curX, curY]) - \
+                              np.array([self.objetos_re_draw[list_select][2], self.objetos_re_draw[list_select][3]]))
+        
+        
+        self.dist2 = np.linalg.norm(np.array([curX, curY]) - \
+                              np.array([self.objetos_re_draw[list_select][2] + self.objetos_re_draw[list_select][4],
+                                        self.objetos_re_draw[list_select][3] + self.objetos_re_draw[list_select][5]]))
+        
+        
+        b = 8 
+        if self.dist1 < self.TDIST:
+            self.canvas.create_oval(self.x1 - b // 2, self.y1 - b // 2, self.x1 + b // 2, self.y1 + b // 2, fill="white", outline='white', width=2)
+        else:
+            self.canvas.create_oval(self.x1 - b // 2, self.y1 - b // 2, self.x1 + b // 2, self.y1 + b // 2, fill="green", outline='green', width=2)
+        
+        if self.dist2 < self.TDIST:
+            self.canvas.create_oval(self.x2 - b // 2, self.y2 - b // 2, self.x2 + b // 2, self.y2 + b // 2, fill="white", outline='white', width=2)
+        else:
+            self.canvas.create_oval(self.x2 - b // 2, self.y2 - b // 2, self.x2 + b // 2, self.y2 + b // 2, fill="green", outline='green', width=2)
+        
     def on_button_release(self, event):
         
-        # marca a figura
-        # if k == str('s'):
-        
+        print "Itens:", len(self.canvas.find_all())
+        self.canvas.delete("all")
         
         if self.idImag == 0:
             self.salvar = self.salvar + "pos_cap/" + self.imgs[self.id]
         
-        if self.y2 < self.y1:
-            aux = self.y2
-            self.y2 = self.y1
-            self.y1 = aux
+#         if self.dist1 < self.TDIST or self.dist2 > self.TDIST:
+#         
+#             if self.y2 < self.y1:
+#                 aux = self.y2
+#                 self.y2 = self.y1
+#                 self.y1 = aux
+#             
+#             if self.x2 < self.x1:
+#                 aux = self.x2
+#                 self.x2 = self.x1
+#                 self.x1 = aux
+#             
         
-        if self.x2 < self.x1:
-            aux = self.x2
-            self.x2 = self.x1
-            self.x1 = aux
-        
-        
-        self.objetos_re_draw.append([self.classe, 0, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
-        
-        
-        
+        if self.dist1 < self.TDIST or self.dist2 < self.TDIST:
+            list_select = self.list_objs.curselection()[0]
+        else:
+            self.objetos_re_draw.append([self.classe, 0, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
+       
         self.x1, self.y1, self.x2, self.y2 = self.con_x(self.x1), self.con_y(self.y1), self.con_x(self.x2), self.con_y(self.y2)
-        
-                                        
+                                         
         self.salvar = self.salvar + " " + str(self.x1) + " " + str(self.y1) + " " + str(self.x2 - self.x1) + " " + str(self.y2 - self.y1)
-        
-        roi = self.frame[self.y1 + 1:self.y2 - 1, self.x1 + 1:self.x2 - 1]        
-        
+        # roi = self.frame[self.y1 + 1:self.y2 - 1, self.x1 + 1:self.x2 - 1]        
         self.idImag = self.idImag + 1
         self.idImagGlobal = self.idImag
+        # cv2.imwrite(self.path_output + str(self.imgs[self.id])[:-4] + "_" + str(self.idImagGlobal) + ".bmp", roi)
         
-        cv2.imwrite(self.path_output + str(self.imgs[self.id])[:-4] + "_" + str(self.idImagGlobal) + ".bmp", roi)
+        if self.dist1 < self.TDIST:
+            self.objetos_coo[list_select][2] = self.x1 
+            self.objetos_coo[list_select][3] = self.y1
         
-        self.objetos_coo.append([self.classe, 0, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
+        elif self.dist2 < self.TDIST:
+            self.objetos_coo[list_select][4] = self.x2 - self.objetos_coo[list_select][2]
+            self.objetos_coo[list_select][5] = self.y2 - self.objetos_coo[list_select][3]
         
-        self.list_objs.insert(END, self.classe)
+        else:
+            self.objetos_coo.append([self.classe, 0, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
+            self.list_objs.insert(END, self.classe)
         
         print "Classe: " + str(self.classe) + " | Nome: " + str(self.imgs[self.id])[:-4] + "_" + str(self.idImagGlobal) + " | Coordenadas: " + str(self.x1) + ", " + str(self.y1) + ", " + str(self.x2) + ", " + str(self.y2)
-        
         self.classe_info()
         
-        for i, _ in enumerate(self.objetos_coo):
-            self.list_objs.selection_clear(i)
-            self.list_track.selection_clear(i)
         
-        id_end = len(self.objetos_coo) - 1
+        if self.dist1 < self.TDIST or self.dist2 < self.TDIST:
+            id_end = list_select
+        else:
+            for i, _ in enumerate(self.objetos_coo):
+                self.list_objs.selection_clear(i)
+                self.list_track.selection_clear(i)
+    
+            id_end = len(self.objetos_coo) - 1
         
         self.list_objs.select_set(id_end)
         self.list_track.select_set(id_end)
-        
+            
         self.redraw_img()
         self.recolor_img(id_end) 
         
         # reload line
         self.create_line_curso()
-        
-        
         
     def redraw_img(self):
         self.update_img()
