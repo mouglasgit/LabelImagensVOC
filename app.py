@@ -441,7 +441,9 @@ class TKMarkCoorAnnotation(Frame):
             
             if id == 0: 
                 self.objetos_coo = []
-            
+                self.list_objs.delete(0, END) 
+                self.list_track.delete(0, END) 
+
             name = obj[0]
             
             try:
