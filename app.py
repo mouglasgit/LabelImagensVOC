@@ -6,9 +6,7 @@ import PIL.Image
 import PIL.ImageTk as ImageTk
 from Tkinter import *  
 
-
 # poe os index para incrementar de 0 até onde for, e ferifica apenas com o ultimo colocado se ja n existe na mesma imagem
-
 
 import cv2
 import os
@@ -21,9 +19,10 @@ import numpy as np
 import random
 import json
 
+
 class TKMarkCoorAnnotation(Frame):
+
     def __init__(self):
-        
         
         self.dist1 = np.Inf
         self.dist2 = np.Inf
@@ -46,7 +45,6 @@ class TKMarkCoorAnnotation(Frame):
         
         #----------------------------------------------------------------
         
-        
         self.id = 0
         self.idImag = 0
         self.idImagGlobal = 0
@@ -66,9 +64,11 @@ class TKMarkCoorAnnotation(Frame):
         
         self.name_img = None
         
-        
         self.objetos_coo = []
         self.objetos_re_draw = []
+        
+        self.copy_objetos_coo = []
+        self.copy_objetos_re_draw = []
         
         self.classe_info()
         
@@ -113,11 +113,7 @@ class TKMarkCoorAnnotation(Frame):
         self.list_files.place(x=10, y=50, width=140, height=320)
         #-------------------------------------------------------------
         
-        
-        
         #---------------------------------------------------------------------
-        
-        
         
         label_list = Label(self, text="Classes", bg='black', fg="white", font=("Arial", 14))
         label_list.place(x=960, y=20)
@@ -146,10 +142,8 @@ class TKMarkCoorAnnotation(Frame):
     
         #----------------------------------------
         
-        
         label_list = Label(self, text="Marcações", bg='black', fg="white", font=("Arial", 14))
         label_list.place(x=30, y=390)
-    
     
         self.list_objs = Listbox(self, selectmode=SINGLE, exportselection=False, bg='black', fg="white",)
         
@@ -159,13 +153,11 @@ class TKMarkCoorAnnotation(Frame):
         self.list_objs.config(yscrollcommand=scrolobj.set) 
         self.list_objs.place(x=10, y=420, width=140, height=320)
         self.list_objs.bind('<<ListboxSelect>>', self.list_objs_event)
-            
         
         #-------------------------------------------------------------
         
         label_list = Label(self, text="Rastreio", bg='black', fg="white", font=("Arial", 14))
         label_list.place(x=940, y=390)
-        
         
         self.list_track = Listbox(self, selectmode=SINGLE, exportselection=False, bg='black', fg="white",)
         
@@ -175,7 +167,6 @@ class TKMarkCoorAnnotation(Frame):
         self.list_track.config(yscrollcommand=scroltrack.set) 
         self.list_track.place(x=940, y=420, width=140, height=320)
         self.list_track.bind('<<ListboxSelect>>', self.list_track_event)
-        
         
         #-------------------------------------------------------------
         
@@ -195,12 +186,17 @@ class TKMarkCoorAnnotation(Frame):
         lb_track = Label(self, text="Rastreio:", bg='black', fg="white", font=("Arial", 14))
         lb_track.place(x=400, y=90)
         
-        
         self.ent_track = Entry(self, name="ent_track")
         self.ent_track.place(x=480, y=90, width=100, height=25)
         
         self.bt_track = Button(self, text='Gravar', bg='black', fg="white", command=self.track_handler)
         self.bt_track.place(x=600, y=90, height=25)
+        
+        self.bt_cop = Button(self, text='Copiar', bg='black', fg="white", command=self.ano_copy)
+        self.bt_cop.place(x=680, y=90, height=25)
+        
+        self.bt_cop = Button(self, text='Colar', bg='black', fg="white", command=self.ano_paste)
+        self.bt_cop.place(x=760, y=90, height=25)
         #--------------------------------------------------
     
         #####
@@ -211,7 +207,6 @@ class TKMarkCoorAnnotation(Frame):
         
         #--------------
         
-        
     def load_config(self):
         data = None
         try:
@@ -221,7 +216,6 @@ class TKMarkCoorAnnotation(Frame):
             print ("Erro load config.json! {}".format(e))
     
         return data
-
     
     def parse_index(self, data):
         new_class = dict()
@@ -245,7 +239,6 @@ class TKMarkCoorAnnotation(Frame):
             size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
             self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]                  
             self.arquivo.write(self.salvar)
-            
         
         size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
         self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]            
@@ -254,22 +247,18 @@ class TKMarkCoorAnnotation(Frame):
         self.idImagGlobal = self.idImag
         self.idImag = 0
         
-        
         idx = self.list_files.curselection()[0]
         self.id = idx
         
         # add nova imagem
         self.update_img()
 
-
         #####
         self.load_xml(self.imgs[self.id])
-    
         
         self.img_atual.config(text="Imagem Atual: {}".format(self.imgs[self.id]))
         percent = float((float(self.id) * 100) / float(len(self.imgs)))
         self.progress.config(text="Progresso: {:0.3f}%".format(percent))
-    
     
     def read_index(self):
         with open("index.txt", "a+") as f:
@@ -297,7 +286,6 @@ class TKMarkCoorAnnotation(Frame):
             file_anot = "{}/{}{}.xml".format(os.path.dirname(os.path.realpath(__file__)), self.path_save_anotation, name_img[:-4])
             tree = ET.parse(file_anot)
             
-            
             root = tree.getroot()
     
             for obj in root.findall('object'):
@@ -310,8 +298,6 @@ class TKMarkCoorAnnotation(Frame):
                     print "Generate index!", e
                     # index = str(random.randint(0, 1000))
                     index = str(self.read_index())
-                    
-                    
                 
                 self.ent_track.delete(0, END)
                 self.ent_track.insert(0, index)
@@ -323,7 +309,6 @@ class TKMarkCoorAnnotation(Frame):
                     new_id = self.switch_class.keys()[-1] + 1
                     
                     self.switch_class.update({new_id:name})
-                    
                     
                     self.listbox.insert(END, self.switch_class[new_id])
                 
@@ -344,13 +329,10 @@ class TKMarkCoorAnnotation(Frame):
                 self.objetos_coo.append([name, index, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
                 self.x1, self.y1, self.x2, self.y2 = self.dcon_x(self.x1), self.dcon_y(self.y1), self.dcon_x(self.x2), self.dcon_y(self.y2)
                 self.objetos_re_draw.append([name, index, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
-                
                         
                 self.list_objs.insert(END, name)
                 
-                
                 self.list_track.insert(END, index)
-                
             
             #--------------------
             
@@ -383,7 +365,6 @@ class TKMarkCoorAnnotation(Frame):
             # reload line
             self.create_line_curso()
         
-        
     def recolor_img(self, idx):
         # self.update_img()
         
@@ -392,7 +373,6 @@ class TKMarkCoorAnnotation(Frame):
         
         self.canvas.create_rectangle(self.x1 - 5, self.y1 - 15, self.x1 + 60, self.y1, fill="yellow", outline='yellow', width=2)
         self.text_class = self.canvas.create_text(self.x1 + 25, self.y1 - 10, font="Arial 10", text=("{} {}").format(self.classe, self.name_i))
-        
         
         self.canvas.create_rectangle(self.x1, self.y1, self.x2, self.y2, fill="", outline='yellow', width=2, dash=(8, 6))
         
@@ -419,12 +399,10 @@ class TKMarkCoorAnnotation(Frame):
     def list_track_event(self, event):
         self.redraw_img()
         idx_track = self.list_track.curselection()[0]
-        
 
         track_value = self.list_track.get(idx_track)
         self.ent_track.delete(0, END)
         self.ent_track.insert(0, track_value)
-        
         
         self.recolor_img(idx_track)
 
@@ -440,6 +418,100 @@ class TKMarkCoorAnnotation(Frame):
         
         #------------------------------------
     
+    def ano_copy(self):
+        print "Annotation copy!"
+
+        self.copy_objetos_coo = self.objetos_coo
+        self.copy_objetos_re_draw = self.objetos_re_draw
+        
+    def ano_paste(self):
+        print "Itens:", len(self.canvas.find_all())
+        self.canvas.delete("all")
+        
+        print "Annotation paste!"
+        
+        # self.objetos_coo = self.copy_objetos_coo
+        self.objetos_re_draw = self.copy_objetos_re_draw
+        
+        # self.objetos_coo.append([self.classe, 0, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
+        # self.objetos_re_draw.append([self.classe, 0, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
+        #------------
+        
+        for id, obj in enumerate(self.objetos_re_draw):
+            
+            if id == 0: 
+                self.objetos_coo = []
+            
+            name = obj[0]
+            
+            try:
+                index = str(obj[1])
+            except Exception, e:
+                print "Generate index!", e
+                # index = str(random.randint(0, 1000))
+                index = str(self.read_index())
+            
+            self.ent_track.delete(0, END)
+            self.ent_track.insert(0, index)
+            
+            # add new class becase not exists
+            select_class = filter(lambda (k, v): v == name, self.switch_class.items())
+            
+            if len(select_class) == 0:
+                new_id = self.switch_class.keys()[-1] + 1
+                
+                self.switch_class.update({new_id:name})
+                
+                self.listbox.insert(END, self.switch_class[new_id])
+            
+            xmin = int(obj[2])
+            ymin = int(obj[3])
+            xmax = int(obj[2] + obj[4])
+            ymax = int(obj[3] + obj[5])
+            
+            x1 = xmin
+            y1 = ymin
+            x2 = xmax
+            y2 = ymax
+            
+            self.x1, self.y1, self.x2, self.y2 = x1, y1, x2, y2            
+            
+            self.x1, self.y1, self.x2, self.y2 = self.con_x(self.x1), self.con_y(self.y1), self.con_x(self.x2), self.con_y(self.y2)
+            self.objetos_coo.append([name, index, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
+                    
+            self.list_objs.insert(END, name)
+            
+            self.list_track.insert(END, index)
+            
+            if id >= len(self.objetos_re_draw):
+                break
+        
+        #--------------------
+        
+        self.classe_info()
+        
+        for i, _ in enumerate(self.objetos_coo):
+            self.list_objs.selection_clear(i)
+            self.list_track.selection_clear(i)
+        
+        id_end = len(self.objetos_coo) - 1
+        
+        self.list_objs.select_set(id_end)
+        self.list_track.select_set(id_end)
+        
+        self.redraw_img()
+        self.recolor_img(id_end) 
+        
+        try:
+            # seleciona a classe passado o nome da mesma    
+            clas_name = self.objetos_coo[id_end][0]
+            self.select_class_name(clas_name)
+        except Exception, e:
+            print e
+        
+        # reload line
+        self.create_line_curso()
+
     def track_handler(self):
         track_value = self.ent_track.get()
         print "Value: ", track_value
@@ -449,7 +521,6 @@ class TKMarkCoorAnnotation(Frame):
         self.objetos_coo[idx][1] = track_value
         self.objetos_re_draw[idx][1] = track_value
         
-        
         self.list_track.delete(idx, idx)
         self.list_track.insert(idx, track_value)
         
@@ -458,7 +529,6 @@ class TKMarkCoorAnnotation(Frame):
         self.list_track.select_set(idx)
         
         self.list_files.focus()
-        
     
     def find_pos(self, key):
         for i, idx in enumerate(self.switch_class.keys()):
@@ -497,12 +567,9 @@ class TKMarkCoorAnnotation(Frame):
             self.list_objs.insert(list_select, self.classe)
             self.list_objs.select_set(list_select)
             
-            
             self.list_track.delete(list_select)
             self.list_track.insert(list_select, self.classe)
             self.list_track.select_set(list_select)
-
-
         
     # converte resolucao
     def con_x(self, x1):
@@ -533,7 +600,6 @@ class TKMarkCoorAnnotation(Frame):
         
         return y2
     
-    
     # desconverte resolucao
     def dcon_x(self, x1):
         # resolucao camera
@@ -563,8 +629,6 @@ class TKMarkCoorAnnotation(Frame):
         
         return y2
     
-    
-    
     def select_class_name(self, clas_name):
         
         id_select_class = filter(lambda (k, v): v == clas_name, self.switch_class.items())[0][0]
@@ -576,10 +640,8 @@ class TKMarkCoorAnnotation(Frame):
          
         self.listbox.select_set(idx)
         
-        
         # reload line
         self.create_line_curso()
-    
     
     def key_press(self, e):
         
@@ -598,8 +660,6 @@ class TKMarkCoorAnnotation(Frame):
                         self.listbox.selection_clear(i)
                     
                     self.listbox.select_set(idx)
-                    
-                    
                     
                     if len(self.objetos_coo) > 0:
                         # print 'classe selecionada: ', self.switch_class[key]
@@ -620,11 +680,9 @@ class TKMarkCoorAnnotation(Frame):
                         self.list_objs.insert(list_select, self.classe)
                         self.list_objs.select_set(list_select)
                         
-                        
                         self.list_track.delete(list_select)
                         self.list_track.insert(list_select, self.classe)
                         self.list_track.select_set(list_select)
-                        
                     
         # del 127
         if k == str('c'):
@@ -642,14 +700,12 @@ class TKMarkCoorAnnotation(Frame):
                 
                 self.redraw_img()
             
-            
                 self.list_objs.select_set(len(self.objetos_coo) - 1)
                 self.list_track.select_set(len(self.objetos_coo) - 1)
             
                 id_end = len(self.objetos_coo) - 1
                 self.list_objs.select_set(id_end)
                 self.list_track.select_set(id_end)
-            
                 
                 try:
                     # seleciona a classe passado o nome da mesma    
@@ -661,7 +717,6 @@ class TKMarkCoorAnnotation(Frame):
                 
                 # reload line
                 self.create_line_curso()
-            
         
         # grava o objeto
         if k == str('w'):
@@ -676,13 +731,9 @@ class TKMarkCoorAnnotation(Frame):
             print 'Objetos: ', self.objetos_coo
             print '-----------------------------------------------------'
             
-            
-            
-            
             string = self.imgs[self.id]
             special = np.array([True if (s.isalnum() or s == "_" or s == "-" or s == ":" \
                           or s == ":" or s == "." or s == "(" or s == ")") else False for s in string])
-            
             
             if len(np.where(special == False)[0]) > 0:
                 
@@ -715,8 +766,6 @@ class TKMarkCoorAnnotation(Frame):
             
             # reload line
             self.create_line_curso()
-            
-            
         
         # avanca image
         if k == str('d'):  
@@ -735,7 +784,6 @@ class TKMarkCoorAnnotation(Frame):
                     size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
                     self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]                  
                     self.arquivo.write(self.salvar)
-                    
                 
                 size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
                 self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]            
@@ -748,7 +796,6 @@ class TKMarkCoorAnnotation(Frame):
                 # add nova imagem
                 self.update_img()
         
-        
                 #####
                 self.load_xml(self.imgs[self.id])
                 
@@ -758,7 +805,6 @@ class TKMarkCoorAnnotation(Frame):
                 
                 # reload line
                 self.create_line_curso()
-            
         
         # volta image
         if k == str('a'):
@@ -766,7 +812,6 @@ class TKMarkCoorAnnotation(Frame):
             self.canvas.delete("all")
             
             if self.id > 0:
-              
             
                 self.objetos_coo = []
                 self.objetos_re_draw = []
@@ -778,7 +823,6 @@ class TKMarkCoorAnnotation(Frame):
                     size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
                     self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]                  
                     self.arquivo.write(self.salvar)
-                    
                 
                 size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
                 self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]            
@@ -791,7 +835,6 @@ class TKMarkCoorAnnotation(Frame):
                 # add nova imagem
                 self.update_img()
         
-        
                 #####
                 self.load_xml(self.imgs[self.id])
                 
@@ -801,7 +844,6 @@ class TKMarkCoorAnnotation(Frame):
             
                 # reload line
                 self.create_line_curso()
-            
         
         self.img_atual.config(text="Imagem Atual: {}".format(self.imgs[self.id]))
         percent = float((float(self.id) * 100) / float(len(self.imgs)))
@@ -812,7 +854,6 @@ class TKMarkCoorAnnotation(Frame):
             print 'Objs:', self.objetos_coo
             print 'Draw: ', self.objetos_re_draw
             print 'Classes: ', self.switch_class
-        
     
     def update_img(self):
         
@@ -824,7 +865,6 @@ class TKMarkCoorAnnotation(Frame):
         self.tk_im = ImageTk.PhotoImage(image=a)
         
         self.canvas.create_image(0, 0, anchor="nw", image=self.tk_im)
-        
     
     def on_button_press(self, event):
         self.redraw_img()
@@ -860,7 +900,6 @@ class TKMarkCoorAnnotation(Frame):
             print e    
         # --
         
-        
         if self.dist1 < self.TDIST:
              
             list_select = self.list_objs.curselection()[0]
@@ -893,17 +932,14 @@ class TKMarkCoorAnnotation(Frame):
         self.canvas.coords(self.vertical_line, curX, 0, curX, self.size_h)
         self.canvas.coords(self.horizontal_line, 0, curY, self.size_w, curY)
         
-        
         list_select = self.list_objs.curselection()[0]
         
         self.dist1 = np.linalg.norm(np.array([curX, curY]) - \
                               np.array([self.objetos_re_draw[list_select][2], self.objetos_re_draw[list_select][3]]))
         
-        
         self.dist2 = np.linalg.norm(np.array([curX, curY]) - \
                               np.array([self.objetos_re_draw[list_select][2] + self.objetos_re_draw[list_select][4],
                                         self.objetos_re_draw[list_select][3] + self.objetos_re_draw[list_select][5]]))
-        
         
         b = 8 
         if self.dist1 < self.TDIST:
@@ -965,7 +1001,6 @@ class TKMarkCoorAnnotation(Frame):
         print "Classe: " + str(self.classe) + " | Nome: " + str(self.imgs[self.id])[:-4] + "_" + str(self.idImagGlobal) + " | Coordenadas: " + str(self.x1) + ", " + str(self.y1) + ", " + str(self.x2) + ", " + str(self.y2)
         self.classe_info()
         
-        
         if self.dist1 < self.TDIST or self.dist2 < self.TDIST:
             id_end = list_select
         else:
@@ -991,11 +1026,9 @@ class TKMarkCoorAnnotation(Frame):
             
             self.classe, self.name_i, self.x1, self.y1, self.x2, self.y2 = c, name_i, x1, y1, (x2 + x1), (y2 + y1)
             
-            
             self.canvas.create_rectangle(self.x1 - 5, self.y1 - 15, self.x1 + 60, self.y1, fill="green", outline='green', width=2)
             self.text_class = self.canvas.create_text(self.x1 + 25, self.y1 - 10, font="Arial 10", text=("{} {}").format(self.classe, self.name_i))
             self.rect = self.canvas.create_rectangle(self.x1, self.y1, self.x2, self.y2, fill="", outline='green', width=2, dash=(8, 6))
-             
     
     def classe_info(self):
         print '----------------------------------------------'
@@ -1037,7 +1070,6 @@ class TKMarkCoorAnnotation(Frame):
         name = SubElement(owner, 'name')
         name.text = 'Mouglas'
         # owner....
-        
         
         #size-----
         size = SubElement(annotation, 'size')
@@ -1094,8 +1126,6 @@ class TKMarkCoorAnnotation(Frame):
             ymax.text = str(int(h + y))
         
         # object....
-            
-        
         
         # files
         #==============================================
@@ -1110,8 +1140,8 @@ class TKMarkCoorAnnotation(Frame):
         
         # print tostring(annotation)
     
-    
     #==========================================================================================
+
 
 if __name__ == "__main__":
 #     root = Tk()
@@ -1122,9 +1152,6 @@ if __name__ == "__main__":
     app = TKMarkCoorAnnotation()
     app.master.geometry("1090x756")
     app.master.title("Marcador de Anotações em Imagens")
-    
-    
-        
     
     app.pack(expand=YES, fill=BOTH)
     app.mainloop()
