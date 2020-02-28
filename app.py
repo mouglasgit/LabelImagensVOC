@@ -19,6 +19,8 @@ import numpy as np
 import random
 import json
 
+SIZE_W, SIZE_H = 1400, 850
+
 
 class TKMarkCoorAnnotation(Frame):
 
@@ -50,7 +52,10 @@ class TKMarkCoorAnnotation(Frame):
         self.idImagGlobal = 0
         self.angulo = 0
         self.frame = None
-        self.size_w, self.size_h = 770, 600
+        
+        global SIZE_W, SIZE_H
+        
+        self.size_w, self.size_h = SIZE_W, SIZE_H
         
         self.imgs = os.listdir(os.path.dirname(os.path.realpath(__file__)) + '/' + self.path_input)
         self.imgs = sorted(self.imgs)
@@ -116,7 +121,7 @@ class TKMarkCoorAnnotation(Frame):
         #---------------------------------------------------------------------
         
         label_list = Label(self, text="Classes", bg='black', fg="white", font=("Arial", 14))
-        label_list.place(x=960, y=20)
+        label_list.place(x=self.size_w + 180, y=20)
         
         #------------------
         
@@ -132,7 +137,7 @@ class TKMarkCoorAnnotation(Frame):
         scrollbar.config(command=self.listbox.yview)
         scrollbar.pack(side="right", fill="y")
         self.listbox.config(yscrollcommand=scrollbar.set) 
-        self.listbox.place(x=940, y=50, width=140, height=320)
+        self.listbox.place(x=self.size_w + 170, y=50, width=140, height=320)
         # self.listbox.place(x=10, y=140, width=140, height=self.size_h)
         #-------------------------------------------------------------
         
@@ -157,7 +162,7 @@ class TKMarkCoorAnnotation(Frame):
         #-------------------------------------------------------------
         
         label_list = Label(self, text="Rastreio", bg='black', fg="white", font=("Arial", 14))
-        label_list.place(x=940, y=390)
+        label_list.place(x=self.size_w + 180, y=390)
         
         self.list_track = Listbox(self, selectmode=SINGLE, exportselection=False, bg='black', fg="white",)
         
@@ -165,7 +170,7 @@ class TKMarkCoorAnnotation(Frame):
         scroltrack.config(command=self.list_track.yview)
         scroltrack.pack(side="right", fill="y")
         self.list_track.config(yscrollcommand=scroltrack.set) 
-        self.list_track.place(x=940, y=420, width=140, height=320)
+        self.list_track.place(x=self.size_w + 170, y=420, width=140, height=320)
         self.list_track.bind('<<ListboxSelect>>', self.list_track_event)
         
         #-------------------------------------------------------------
@@ -206,7 +211,7 @@ class TKMarkCoorAnnotation(Frame):
         self.create_line_curso()
         
         #--------------
-        
+       
     def load_config(self):
         data = None
         try:
@@ -443,7 +448,7 @@ class TKMarkCoorAnnotation(Frame):
                 self.objetos_coo = []
                 self.list_objs.delete(0, END) 
                 self.list_track.delete(0, END) 
-
+            
             name = obj[0]
             
             try:
@@ -1152,7 +1157,8 @@ if __name__ == "__main__":
 #     
     
     app = TKMarkCoorAnnotation()
-    app.master.geometry("1090x756")
+    global SIZE_W, SIZE_H
+    app.master.geometry("{}x{}".format(SIZE_W + 320, SIZE_H + 156))
     app.master.title("Marcador de Anotações em Imagens")
     
     app.pack(expand=YES, fill=BOTH)
