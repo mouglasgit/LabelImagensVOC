@@ -75,6 +75,9 @@ class TKMarkCoorAnnotation(Frame):
         self.copy_objetos_coo = []
         self.copy_objetos_re_draw = []
         
+        self.copy_selec_objeto_coo = None
+        self.copy_selec_objeto_re_draw = None
+        
         self.classe_info()
         
         #---------------------------------------------------------------------
@@ -200,8 +203,11 @@ class TKMarkCoorAnnotation(Frame):
         self.bt_cop = Button(self, text='Copiar', bg='black', fg="white", command=self.ano_copy)
         self.bt_cop.place(x=680, y=90, height=25)
         
-        self.bt_cop = Button(self, text='Colar', bg='black', fg="white", command=self.ano_paste)
+        self.bt_cop = Button(self, text='Cop selec', bg='black', fg="white", command=self.ano_copy_select)
         self.bt_cop.place(x=760, y=90, height=25)
+        
+        self.bt_cop = Button(self, text='Colar', bg='black', fg="white", command=self.ano_paste)
+        self.bt_cop.place(x=860, y=90, height=25)
         #--------------------------------------------------
     
         #####
@@ -428,11 +434,115 @@ class TKMarkCoorAnnotation(Frame):
 
         self.copy_objetos_coo = self.objetos_coo
         self.copy_objetos_re_draw = self.objetos_re_draw
+    
+    def ano_copy_select(self):
+        print "Annotation select copy!"
         
+        list_select = self.list_objs.curselection()[0]
+        
+        self.copy_selec_objeto_coo = self.objetos_coo[list_select]
+        self.copy_selec_objeto_re_draw = self.objetos_re_draw[list_select]
+        
+        self.copy_objetos_coo = []
+        self.copy_objetos_re_draw = []
+
     def ano_paste(self):
         print "Itens:", len(self.canvas.find_all())
         self.canvas.delete("all")
         
+        if len(self.copy_objetos_coo) > 0:
+            self.copy_all()
+        else:
+            self.copy_select()
+            
+    def copy_select(self):
+        print "Annotation paste!"
+        
+        # self.objetos_coo = self.copy_objetos_coo
+        self.objetos_re_draw.append(self.copy_selec_objeto_re_draw)
+        
+        # self.objetos_coo.append([self.classe, 0, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
+        # self.objetos_re_draw.append([self.classe, 0, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
+        #------------
+        
+        for id, obj in enumerate(self.objetos_re_draw):
+            
+            if id == 0: 
+                self.objetos_coo = []
+                self.list_objs.delete(0, END) 
+                self.list_track.delete(0, END) 
+            
+            name = obj[0]
+            
+            try:
+                index = str(obj[1])
+            except Exception, e:
+                print "Generate index!", e
+                # index = str(random.randint(0, 1000))
+                index = str(self.read_index())
+            
+            self.ent_track.delete(0, END)
+            self.ent_track.insert(0, index)
+            
+            # add new class becase not exists
+            select_class = filter(lambda (k, v): v == name, self.switch_class.items())
+            
+            if len(select_class) == 0:
+                new_id = self.switch_class.keys()[-1] + 1
+                
+                self.switch_class.update({new_id:name})
+                
+                self.listbox.insert(END, self.switch_class[new_id])
+            
+            xmin = int(obj[2])
+            ymin = int(obj[3])
+            xmax = int(obj[2] + obj[4])
+            ymax = int(obj[3] + obj[5])
+            
+            x1 = xmin
+            y1 = ymin
+            x2 = xmax
+            y2 = ymax
+            
+            self.x1, self.y1, self.x2, self.y2 = x1, y1, x2, y2            
+            
+            self.x1, self.y1, self.x2, self.y2 = self.con_x(self.x1), self.con_y(self.y1), self.con_x(self.x2), self.con_y(self.y2)
+            self.objetos_coo.append([name, index, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
+                    
+            self.list_objs.insert(END, name)
+            
+            self.list_track.insert(END, index)
+            
+            if id >= len(self.objetos_re_draw):
+                break
+        
+        #--------------------
+        
+        self.classe_info()
+        
+        for i, _ in enumerate(self.objetos_coo):
+            self.list_objs.selection_clear(i)
+            self.list_track.selection_clear(i)
+        
+        id_end = len(self.objetos_coo) - 1
+        
+        self.list_objs.select_set(id_end)
+        self.list_track.select_set(id_end)
+        
+        self.redraw_img()
+        self.recolor_img(id_end) 
+        
+        try:
+            # seleciona a classe passado o nome da mesma    
+            clas_name = self.objetos_coo[id_end][0]
+            self.select_class_name(clas_name)
+        except Exception, e:
+            print e
+        
+        # reload line
+        self.create_line_curso()
+    
+    def copy_all(self):
         print "Annotation paste!"
         
         # self.objetos_coo = self.copy_objetos_coo
