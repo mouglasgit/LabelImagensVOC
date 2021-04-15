@@ -18,8 +18,11 @@ import imutils
 import numpy as np
 import random
 import json
+import time
+import threading
 
-SIZE_W, SIZE_H = 1400, 850
+SIZE_W, SIZE_H = 1600, 850
+# SIZE_W, SIZE_H = 1050, 585
 
 
 class TKMarkCoorAnnotation(Frame):
@@ -59,7 +62,7 @@ class TKMarkCoorAnnotation(Frame):
         
         self.imgs = os.listdir(os.path.dirname(os.path.realpath(__file__)) + '/' + self.path_input)
         self.imgs = sorted(self.imgs)
-        print self.imgs
+        print(self.imgs)
         
         self.drawing = False  # true if mouse is pressed
         self.mode = True
@@ -78,7 +81,7 @@ class TKMarkCoorAnnotation(Frame):
         self.copy_selec_objeto_coo = None
         self.copy_selec_objeto_re_draw = None
         
-        self.classe_info()
+        # self.classe_info()
         
         #---------------------------------------------------------------------
         Frame.__init__(self, master=None, bg='black')
@@ -208,6 +211,21 @@ class TKMarkCoorAnnotation(Frame):
         
         self.bt_cop = Button(self, text='Colar', bg='black', fg="white", command=self.ano_paste)
         self.bt_cop.place(x=860, y=90, height=25)
+        
+        
+        
+        # lb_appl = Label(self, text="Aplicar até:", bg='black', fg="white", font=("Arial", 14))
+        # lb_appl.place(x=970, y=90)
+        
+        self.MAX_AUTO = 2
+        self.ent_max_auto = Entry(self, name="ent_max_auto", textvariable=StringVar(self, value=self.MAX_AUTO))
+        self.ent_max_auto.place(x=970, y=90, width=60, height=25)
+        
+        self.bt_auto_substitui = Button(self, text="Auto Remove:{}".format(self.MAX_AUTO), bg='black', fg="white", command=self.make_auto_remove)
+        self.bt_auto_substitui.place(x=1040, y=90, width=130, height=25)
+        
+        self.bt_auto_cola = Button(self, text="Auto Cola:{}".format(self.MAX_AUTO), bg='black', fg="white", command=self.make_auto_cola)
+        self.bt_auto_cola.place(x=1180, y=90, width=130, height=25)
         #--------------------------------------------------
     
         #####
@@ -217,14 +235,119 @@ class TKMarkCoorAnnotation(Frame):
         self.create_line_curso()
         
         #--------------
-       
+    
+    def make_auto_remove(self):
+        threading.Thread(target=self.thread_auto_remove).start()
+        
+    def thread_auto_remove(self):
+        self.MAX_AUTO = int(self.ent_max_auto.get())
+        self.bt_auto_substitui.config(text="Auto Remove:{}".format(self.MAX_AUTO))
+        self.bt_auto_cola.config(text="Auto Cola:{}".format(self.MAX_AUTO))
+    
+        idx = None
+        new_obj = None
+        
+        i = 0
+        while i < self.MAX_AUTO:
+            
+            if idx is None:
+                idx = self.list_objs.curselection()[0]
+                new_obj = self.objetos_coo[idx]
+                
+            
+            id_remove = self.find_idx_obj_remove(new_obj)
+            
+            #print "New: ", new_obj, id_remove, idx
+    
+            if id_remove is not None:
+                self.list_objs.delete(id_remove)
+                self.list_track.delete(id_remove)  
+                
+                self.objetos_coo.pop(id_remove)
+                self.objetos_re_draw.pop(id_remove)
+                
+                self.redraw_img()
+            
+                self.list_objs.select_set(len(self.objetos_coo) - 1)
+                self.list_track.select_set(len(self.objetos_coo) - 1)
+            
+                id_end = len(self.objetos_coo) - 1
+                self.list_objs.select_set(id_end)
+                self.list_track.select_set(id_end)
+                
+                try:
+                    # seleciona a classe passado o nome da mesma    
+                    clas_name = self.objetos_coo[id_end][0]
+                    self.select_class_name(clas_name)
+                    self.recolor_img(id_end) 
+                except Exception, e:
+                    print (e)
+                
+            
+            #print "Objetos: ", self.objetos_coo
+   
+            i += 1
+            
+            self.img_atual.config(text="Imagem Atual: {}".format(self.imgs[self.id]))
+            percent = float((float(self.id) * 100) / float(len(self.imgs)))
+            self.progress.config(text="Progresso: {:0.3f}%".format(percent))
+            
+            time.sleep(0.2)
+            self.write_objects()
+            self.next_image()
+            time.sleep(0.2)
+    
+    
+    def find_idx_obj_remove(self, new_obj):
+        n_name, _, n_x, n_y, n_w, n_h = new_obj
+            
+        best_id = None
+        best_dist = np.inf
+        for j, obj in enumerate(self.objetos_coo):
+            c_name, _, c_x, c_y, c_w, c_h = obj
+            dist = np.linalg.norm(np.array([n_x + n_w / 2, n_y + n_h / 2]) - np.array([c_x + c_w / 2, c_y + c_h / 2]))
+            
+            if n_name == c_name and dist < best_dist and dist < 10:
+                best_dist = dist
+                best_id = j
+                
+        #print "Find: ", n_name, c_name, dist, best_id
+
+        return best_id
+    
+    def make_auto_cola(self):
+        threading.Thread(target=self.thread_auto_cola).start()
+        
+    def thread_auto_cola(self):    
+        self.MAX_AUTO = int(self.ent_max_auto.get())
+        self.bt_auto_substitui.config(text="Auto Remove:{}".format(self.MAX_AUTO))
+        self.bt_auto_cola.config(text="Auto Cola:{}".format(self.MAX_AUTO))
+        
+        self.ano_copy_select()
+        self.write_objects()
+            
+        i = 0
+        while i < self.MAX_AUTO:
+            self.next_image()
+            self.ano_paste()
+            time.sleep(0.2)
+            self.write_objects()
+            
+            i += 1
+            
+            self.img_atual.config(text="Imagem Atual: {}".format(self.imgs[self.id]))
+            percent = float((float(self.id) * 100) / float(len(self.imgs)))
+            self.progress.config(text="Progresso: {:0.3f}%".format(percent))
+                    
+            time.sleep(0.2)
+    
     def load_config(self):
         data = None
         try:
             with open('data_config.json') as data_file:    
                 data = json.load(data_file)
         except Exception, e:
-            print ("Erro load config.json! {}".format(e))
+            print(("Erro load config.json! {}".format(e)))
     
         return data
     
@@ -306,7 +429,7 @@ class TKMarkCoorAnnotation(Frame):
                 try:
                     index = str(obj.find('index').text)
                 except Exception, e:
-                    print "Generate index!", e
+                    print(("Generate index!", e))
                     # index = str(random.randint(0, 1000))
                     index = str(self.read_index())
                 
@@ -347,9 +470,9 @@ class TKMarkCoorAnnotation(Frame):
             
             #--------------------
             
-            print 'Load:', file_anot        
+            # print(('Load:', file_anot))
             
-            self.classe_info()
+            # self.classe_info()
             
             for i, _ in enumerate(self.objetos_coo):
                 self.list_objs.selection_clear(i)
@@ -368,10 +491,10 @@ class TKMarkCoorAnnotation(Frame):
                 clas_name = self.objetos_coo[id_end][0]
                 self.select_class_name(clas_name)
             except Exception, e:
-                print e
+                print(e)
             
         except Exception, e:
-            print "No annotation for the image: ", name_img, e
+            print(("No annotation for the image: ", name_img, e))
             
             # reload line
             self.create_line_curso()
@@ -430,13 +553,13 @@ class TKMarkCoorAnnotation(Frame):
         #------------------------------------
     
     def ano_copy(self):
-        print "Annotation copy!"
+        # print("Annotation copy!")
 
         self.copy_objetos_coo = self.objetos_coo
         self.copy_objetos_re_draw = self.objetos_re_draw
     
     def ano_copy_select(self):
-        print "Annotation select copy!"
+        # print("Annotation select copy!")
         
         list_select = self.list_objs.curselection()[0]
         
@@ -447,7 +570,7 @@ class TKMarkCoorAnnotation(Frame):
         self.copy_objetos_re_draw = []
 
     def ano_paste(self):
-        print "Itens:", len(self.canvas.find_all())
+        # print(("Itens:", len(self.canvas.find_all())))
         self.canvas.delete("all")
         
         if len(self.copy_objetos_coo) > 0:
@@ -456,7 +579,7 @@ class TKMarkCoorAnnotation(Frame):
             self.copy_select()
             
     def copy_select(self):
-        print "Annotation paste!"
+        # print ("Annotation paste!")
         
         # self.objetos_coo = self.copy_objetos_coo
         self.objetos_re_draw.append(self.copy_selec_objeto_re_draw)
@@ -477,7 +600,7 @@ class TKMarkCoorAnnotation(Frame):
             try:
                 index = str(obj[1])
             except Exception, e:
-                print "Generate index!", e
+                print (("Generate index!", e))
                 # index = str(random.randint(0, 1000))
                 index = str(self.read_index())
             
@@ -518,7 +641,7 @@ class TKMarkCoorAnnotation(Frame):
         
         #--------------------
         
-        self.classe_info()
+        # self.classe_info()
         
         for i, _ in enumerate(self.objetos_coo):
             self.list_objs.selection_clear(i)
@@ -537,13 +660,13 @@ class TKMarkCoorAnnotation(Frame):
             clas_name = self.objetos_coo[id_end][0]
             self.select_class_name(clas_name)
         except Exception, e:
-            print e
+            print(e)
         
         # reload line
         self.create_line_curso()
     
     def copy_all(self):
-        print "Annotation paste!"
+        # print ("Annotation paste!")
         
         # self.objetos_coo = self.copy_objetos_coo
         self.objetos_re_draw = self.copy_objetos_re_draw
@@ -564,7 +687,7 @@ class TKMarkCoorAnnotation(Frame):
             try:
                 index = str(obj[1])
             except Exception, e:
-                print "Generate index!", e
+                print (("Generate index!", e))
                 # index = str(random.randint(0, 1000))
                 index = str(self.read_index())
             
@@ -605,7 +728,7 @@ class TKMarkCoorAnnotation(Frame):
         
         #--------------------
         
-        self.classe_info()
+        # self.classe_info()
         
         for i, _ in enumerate(self.objetos_coo):
             self.list_objs.selection_clear(i)
@@ -624,14 +747,14 @@ class TKMarkCoorAnnotation(Frame):
             clas_name = self.objetos_coo[id_end][0]
             self.select_class_name(clas_name)
         except Exception, e:
-            print e
+            print (e)
         
         # reload line
         self.create_line_curso()
 
     def track_handler(self):
         track_value = self.ent_track.get()
-        print "Value: ", track_value
+        # print (("Value: ", track_value))
         
         idx = self.list_objs.curselection()[0]
         
@@ -766,7 +889,11 @@ class TKMarkCoorAnnotation(Frame):
         
         # para as teclas de atalho n atrapalharem na hora de digitar o track
         is_focus = True if str(self.ent_track.focus_get()).split('.')[-1] == 'ent_track' else False
-        if is_focus == False:
+        is_focus2 = True if str(self.ent_max_auto.focus_get()).split('.')[-1] == 'ent_max_auto' else False
+        
+        
+        
+        if is_focus == False and is_focus2==False:
             # troca a classe do objecto
             for key in self.switch_class.keys():
                 if k == str(key):
@@ -803,129 +930,19 @@ class TKMarkCoorAnnotation(Frame):
                     
         # del 127
         if k == str('c'):
-            print "Itens:", len(self.canvas.find_all())
-            self.canvas.delete("all")
+            self.remove_object()
             
-            if len(self.objetos_coo) > 0:
-                idx = self.list_objs.curselection()[0]
-                
-                self.list_objs.delete(idx)
-                self.list_track.delete(idx)  
-                
-                self.objetos_coo.pop(idx)
-                self.objetos_re_draw.pop(idx)
-                
-                self.redraw_img()
-            
-                self.list_objs.select_set(len(self.objetos_coo) - 1)
-                self.list_track.select_set(len(self.objetos_coo) - 1)
-            
-                id_end = len(self.objetos_coo) - 1
-                self.list_objs.select_set(id_end)
-                self.list_track.select_set(id_end)
-                
-                try:
-                    # seleciona a classe passado o nome da mesma    
-                    clas_name = self.objetos_coo[id_end][0]
-                    self.select_class_name(clas_name)
-                    self.recolor_img(id_end) 
-                except Exception, e:
-                    print e
-                
-                # reload line
-                self.create_line_curso()
-        
         # grava o objeto
         if k == str('w'):
-            print "Itens:", len(self.canvas.find_all())
-            self.canvas.delete("all")
+            self.write_objects()
             
-            h, w, _ = self.frame.shape
-            
-            print 'Anotação gerada!'
-            print 'Nome imagem:', self.imgs[self.id]
-            print 'Resolução: ' , (w, h) 
-            print 'Objetos: ', self.objetos_coo
-            print '-----------------------------------------------------'
-            
-            string = self.imgs[self.id]
-            special = np.array([True if (s.isalnum() or s == "_" or s == "-" or s == ":" \
-                          or s == ":" or s == "." or s == "(" or s == ")") else False for s in string])
-            
-            if len(np.where(special == False)[0]) > 0:
-                
-                self.imgs[self.id] = "".join(s for s in string if s.isalnum() or s == "_" or s == "-" or s == ":" \
-                                             or s == ":" or s == "." or s == "(" or s == ")")
-            
-                os.rename(self.path_input + string, self.path_input + self.imgs[self.id])
-                
-                self.ge_file_xml(self.path_save_anotation, self.imgs[self.id], w, h, self.objetos_coo)
-            
-            else:
-                self.ge_file_xml(self.path_save_anotation, self.imgs[self.id], w, h, self.objetos_coo)
-            
-            try:
-                shutil.copy2(self.path_input + self.imgs[self.id], self.path_save_img)
-            except Exception, e:
-                print 'Image already exists! ', e
-            
-            self.objetos_coo = []
-            self.objetos_re_draw = []
-            self.list_objs.delete(0, END) 
-            self.list_track.delete(0, END)  
-            
-            self.classe_info()
-            
-            self.status.config(text="Status: {}".format('Salvo'))
-            
-            # add nova imagem
-            self.update_img()
-            
-            # reload line
-            self.create_line_curso()
-        
         # avanca image
         if k == str('d'):  
-            print "Itens:", len(self.canvas.find_all())
-            self.canvas.delete("all")
-        
-            if self.id < len(self.imgs) - 1:
+            self.next_image()
                 
-                self.objetos_coo = []
-                self.objetos_re_draw = []
-                self.list_objs.delete(0, END)  
-                self.list_track.delete(0, END)       
-                self.status.config(text="Status: {}".format('Não Salvo'))
-                
-                if self.id == len(self.imgs) - 1:
-                    size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
-                    self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]                  
-                    self.arquivo.write(self.salvar)
-                
-                size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
-                self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]            
-    
-                self.salvar = self.salvar + "\r\n"
-                self.idImagGlobal = self.idImag
-                self.idImag = 0
-                self.id = self.id + 1
-                
-                # add nova imagem
-                self.update_img()
-        
-                #####
-                self.load_xml(self.imgs[self.id])
-                
-                for i, _ in enumerate(self.imgs):
-                    self.list_files.selection_clear(i)
-                self.list_files.select_set(self.id)
-                
-                # reload line
-                self.create_line_curso()
-        
         # volta image
         if k == str('a'):
-            print "Itens:", len(self.canvas.find_all())
+            # print "Itens:", len(self.canvas.find_all())
             self.canvas.delete("all")
             
             if self.id > 0:
@@ -971,6 +988,129 @@ class TKMarkCoorAnnotation(Frame):
             print 'Objs:', self.objetos_coo
             print 'Draw: ', self.objetos_re_draw
             print 'Classes: ', self.switch_class
+    
+    
+    def write_objects(self):
+        #print "Itens:", len(self.canvas.find_all())
+        self.canvas.delete("all")
+        
+        h, w, _ = self.frame.shape
+        
+        # print 'Anotação gerada!'
+        # print 'Nome imagem:', self.imgs[self.id]
+        # print 'Resolução: ' , (w, h) 
+        # print 'Objetos: ', self.objetos_coo
+        # print '-----------------------------------------------------'
+        
+        string = self.imgs[self.id]
+        special = np.array([True if (s.isalnum() or s == "_" or s == "-" or s == ":" \
+                      or s == ":" or s == "." or s == "(" or s == ")") else False for s in string])
+        
+        if len(np.where(special == False)[0]) > 0:
+            
+            self.imgs[self.id] = "".join(s for s in string if s.isalnum() or s == "_" or s == "-" or s == ":" \
+                                         or s == ":" or s == "." or s == "(" or s == ")")
+        
+            os.rename(self.path_input + string, self.path_input + self.imgs[self.id])
+            
+            self.ge_file_xml(self.path_save_anotation, self.imgs[self.id], w, h, self.objetos_coo)
+        
+        else:
+            self.ge_file_xml(self.path_save_anotation, self.imgs[self.id], w, h, self.objetos_coo)
+        
+        try:
+            shutil.copy2(self.path_input + self.imgs[self.id], self.path_save_img)
+        except Exception, e:
+            print 'Image already exists! ', e
+        
+        self.objetos_coo = []
+        self.objetos_re_draw = []
+        self.list_objs.delete(0, END) 
+        self.list_track.delete(0, END)  
+        
+        # self.classe_info()
+        
+        self.status.config(text="Status: {}".format('Salvo'))
+        
+        # add nova imagem
+        self.update_img()
+        
+        # reload line
+        self.create_line_curso()
+    
+    def next_image(self):
+        # print "Itens:", len(self.canvas.find_all())
+        self.canvas.delete("all")
+    
+        if self.id < len(self.imgs) - 1:
+            
+            self.objetos_coo = []
+            self.objetos_re_draw = []
+            self.list_objs.delete(0, END)  
+            self.list_track.delete(0, END)       
+            self.status.config(text="Status: {}".format('Não Salvo'))
+            
+            if self.id == len(self.imgs) - 1:
+                size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
+                self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]                  
+                self.arquivo.write(self.salvar)
+            
+            size = self.salvar.find(self.imgs[self.id]) + len(self.imgs[self.id])                    
+            self.salvar = self.salvar[:size] + " " + str(self.idImagGlobal) + self.salvar[size:]            
+
+            self.salvar = self.salvar + "\r\n"
+            self.idImagGlobal = self.idImag
+            self.idImag = 0
+            self.id = self.id + 1
+            
+            # add nova imagem
+            self.update_img()
+    
+            #####
+            self.load_xml(self.imgs[self.id])
+            
+            for i, _ in enumerate(self.imgs):
+                self.list_files.selection_clear(i)
+            self.list_files.select_set(self.id)
+            
+            # reload line
+            self.create_line_curso()
+
+    
+    def remove_object(self):
+        # print (("Itens:", len(self.canvas.find_all())))
+        self.canvas.delete("all")
+        
+        if len(self.objetos_coo) > 0:
+            idx = self.list_objs.curselection()[0]
+            
+            self.list_objs.delete(idx)
+            self.list_track.delete(idx)  
+            
+            self.objetos_coo.pop(idx)
+            self.objetos_re_draw.pop(idx)
+            
+            self.redraw_img()
+        
+            self.list_objs.select_set(len(self.objetos_coo) - 1)
+            self.list_track.select_set(len(self.objetos_coo) - 1)
+        
+            id_end = len(self.objetos_coo) - 1
+            self.list_objs.select_set(id_end)
+            self.list_track.select_set(id_end)
+            
+            try:
+                # seleciona a classe passado o nome da mesma    
+                clas_name = self.objetos_coo[id_end][0]
+                self.select_class_name(clas_name)
+                self.recolor_img(id_end) 
+            except Exception, e:
+                print (e)
+            
+            # reload line
+            self.create_line_curso()
+    
+    
     
     def update_img(self):
         
@@ -1071,7 +1211,7 @@ class TKMarkCoorAnnotation(Frame):
         
     def on_button_release(self, event):
         
-        print "Itens:", len(self.canvas.find_all())
+        # print "Itens:", len(self.canvas.find_all())
         self.canvas.delete("all")
         
         if self.idImag == 0:
@@ -1115,8 +1255,8 @@ class TKMarkCoorAnnotation(Frame):
             self.objetos_coo.append([self.classe, 0, self.x1, self.y1, (self.x2 - self.x1), (self.y2 - self.y1)])
             self.list_objs.insert(END, self.classe)
         
-        print "Classe: " + str(self.classe) + " | Nome: " + str(self.imgs[self.id])[:-4] + "_" + str(self.idImagGlobal) + " | Coordenadas: " + str(self.x1) + ", " + str(self.y1) + ", " + str(self.x2) + ", " + str(self.y2)
-        self.classe_info()
+        # print "Classe: " + str(self.classe) + " | Nome: " + str(self.imgs[self.id])[:-4] + "_" + str(self.idImagGlobal) + " | Coordenadas: " + str(self.x1) + ", " + str(self.y1) + ", " + str(self.x2) + ", " + str(self.y2)
+        # self.classe_info()
         
         if self.dist1 < self.TDIST or self.dist2 < self.TDIST:
             id_end = list_select

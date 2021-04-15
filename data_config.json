@@ -1,8 +1,26 @@
 {
-"class":{"1":"person", "2":"airplane"},
-"dataset":{
-	"url": "data",
-	"inputs": "/Input/", 
-	"imagens": "/JPEGImages/", 
-	"anotations": "/Annotations/"}
+	"class": {
+		"1": "tractor",
+		"2": "tractorpushback",
+		"3": "car",
+		"4": "stopzone",
+		"5": "catering",
+		"6": "cockpit",
+		"7": "person",
+		"8": "tail",
+		"9": "truck",
+		"10": "finger",
+		"11": "bus",
+		"12": "fuel",
+		"13": "turbine",
+		"14": "wing",
+		"15": "airplane",
+		"16": "trailer"
+	},
+	"dataset": {
+		"url": "data",
+		"inputs": "/Input/",
+		"imagens": "/JPEGImages/",
+		"anotations": "/Annotations/"
+	}
 }
